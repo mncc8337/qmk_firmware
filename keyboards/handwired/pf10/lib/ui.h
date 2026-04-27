@@ -1,6 +1,19 @@
 #pragma once
 #include QMK_KEYBOARD_H
 
+enum ui_keycodes {
+    UIKC_START = SAFE_RANGE,
+    UIKC_UP = UIKC_START,
+    UIKC_DOWN,
+    UIKC_LEFT,
+    UIKC_RIGHT,
+    UIKC_CLICK,
+    UIKC_BACK,
+    UIKC_END = UIKC_BACK,
+};
+#undef SAFE_RANGE
+#define SAFE_RANGE (UIKC_END + 1)
+
 typedef enum {
     ITEM_ACTION,
     ITEM_TOGGLE,
@@ -49,7 +62,7 @@ typedef enum {
 typedef struct screen {
     screen_type_t type;
     bool need_redraw;
-    bool (*event)(struct screen *self, int keycode);
+    bool (*event)(struct screen *self, uint16_t keycode, keyrecord_t *record);
     void (*enter_callback)(void);
     void (*exit_callback)(void);
     struct screen *parent;
@@ -59,3 +72,11 @@ typedef struct screen {
         void (*draw)(struct screen *self); // type SCREEN_FREEDRAW
     };
 } screen_t;
+
+void ui_init(screen_t *default_screen);
+void ui_open_screen(screen_t *screen);
+void ui_menu_set_first_column_width(uint8_t new_width);
+void ui_menu_draw(screen_t *self);
+bool ui_menu_event(screen_t *self, uint16_t keycode, keyrecord_t *record);
+bool ui_event(uint16_t keycode, keyrecord_t *record);
+void ui_render(void);

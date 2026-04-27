@@ -1,12 +1,5 @@
-#include <stdint.h>
-#include <string.h>
 #include "myui.h"
 #include "bitmap.h"
-#include "defines.h"
-#include "lib/ui.h"
-#include "oled_driver.h"
-#include "rgb_matrix.h"
-#include "util.h"
 
 static uint8_t led_enabled;
 static uint8_t led_speed;
@@ -19,203 +12,141 @@ static uint8_t led_g;
 static uint8_t led_b;
 static bool no_update_rgb_from_hsv = false;
 
-static screen_t* current_screen;
-static root_screen_t current_root_screen;
+static layer_t current_layer;
 
-static void open_screen(screen_t *screen) {
-    if(current_screen == screen || !screen) {
-        return;
-    }
-
-    if(current_screen->exit_callback) {
-        current_screen->exit_callback();
-    }
-
-    current_screen = screen;
-    current_screen->need_redraw = true;
-
-    if(current_screen->enter_callback) {
-        current_screen->enter_callback();
-    }
-}
-
-static bool menu_event(screen_t *self, int keycode) {
-    menu_t *self_menu = &self->menu;
-    menu_item_t *item = &self_menu->items[self_menu->current_item];
-
-    uint8_t resolution = 1;
+enum {
+    MAIN_KC_UP = 0,
+    MAIN_KC_DOWN,
+    MAIN_KC_LEFT,
+    MAIN_KC_RIGHT,
+    MAIN_KC_Z,
+    MAIN_KC_X,
+    MAIN_KC_C,
+    MAIN_KC_CNT,
+};
+static bool key_state[MAIN_KC_CNT];
+static uint8_t key_pressed_count = 0;
+static bool main_event(screen_t *self, uint16_t keycode, keyrecord_t *record) {
+    int mapped = -1;
     switch(keycode) {
-        case UI_UP:
-            if(self_menu->current_item > 0) {
-                self_menu->current_item--;
-            } else {
-                self_menu->current_item = self_menu->num_items - 1;
-            }
-            self->need_redraw = true;
+        case KC_UP:
+            mapped = MAIN_KC_UP;
             break;
-
-        case UI_DOWN:
-            if(self_menu->current_item < self_menu->num_items - 1) {
-                self_menu->current_item++;
-            } else {
-                self_menu->current_item = 0;
-            }
-            self->need_redraw = true;
+        case KC_DOWN:
+            mapped = MAIN_KC_DOWN;
             break;
-
-        case UI_CLICK:
-            switch(item->type) {
-                case ITEM_TOGGLE:
-                    *item->data_ptr = !(*item->data_ptr);
-                    item->callback(*item->data_ptr);
-                    self->need_redraw = true;
-                    return false;
-
-                case ITEM_ACTION:
-                    if (item->action) item->action();
-                    return false;
-
-                case ITEM_SCREEN:
-                    open_screen(item->target_screen);
-                    return false;
-
-                default:
-                    return true;
-            }
-
-        case UI_BACK:
-            if(self->parent) {
-                open_screen(self->parent);
-                return false;
-            }
-            return true;
-
-        case UI_LEFT:
-            if(item->type == ITEM_SLIDER) {
-                resolution = item->resolution;
-            }
-            if(item->type == ITEM_SLIDER || item->type == ITEM_LIST) {
-                (*item->data_ptr) -= resolution;
-                if(item->type == ITEM_LIST && *item->data_ptr >= item->list_count) {
-                    *item->data_ptr = item->list_count - 1;
-                }
-                item->callback(*item->data_ptr);
-                self->need_redraw = true;
-                return false;
-            }
-            return true;
-
-        case UI_RIGHT:
-            if(item->type == ITEM_SLIDER) {
-                resolution = item->resolution;
-            }
-            if(item->type == ITEM_SLIDER || item->type == ITEM_LIST) {
-                (*item->data_ptr) += resolution;
-                if(item->type == ITEM_LIST && *item->data_ptr >= item->list_count) {
-                    *item->data_ptr = 0;
-                }
-                item->callback(*item->data_ptr);
-                self->need_redraw = true;
-                return false;
-            }
-            return true;
-
-        default:
-            return true;
+        case KC_LEFT:
+            mapped = MAIN_KC_LEFT;
+            break;
+        case KC_RIGHT:
+            mapped = MAIN_KC_RIGHT;
+            break;
+        case KC_Z:
+            mapped = MAIN_KC_Z;
+            break;
+        case KC_X:
+            mapped = MAIN_KC_X;
+            break;
+        case KC_C:
+            mapped = MAIN_KC_C;
+            break;
     }
 
-    if(self_menu->current_item < self_menu->first_shown_item) {
-        self_menu->first_shown_item = self_menu->current_item;
-    } else if(self_menu->current_item >= self_menu->first_shown_item + 7) {
-        self_menu->first_shown_item = self_menu->current_item - 6;
+    if(mapped >= 0) {
+        key_state[mapped] = record->event.pressed;
+        key_pressed_count += record->event.pressed;
+        self->need_redraw = true;
     }
 
-    return false;
-}
-
-static animation_t *current_anim = (animation_t*)&KEMOMIMI_GIF;
-static bool main_event(screen_t *self, int keycode) {
     return true;
 }
 
-static void draw_menu(screen_t *screen) {
-    if(!screen->need_redraw) return;
-
+static void main_enter(void) {
     oled_clear();
-
-    menu_t *menu = &screen->menu;
-
-    uint8_t end_item = menu->first_shown_item + 7;
-    if(end_item > menu->num_items) {
-        end_item = menu->num_items;
-    }
-
-    for(uint8_t i = menu->first_shown_item; i < end_item; i++) {
-        oled_set_cursor(0, i - menu->first_shown_item);
-        // draw the label
-        if(i == menu->current_item) {
-            oled_write("> ", false);
-        } else {
-            oled_write("  ", false);
-        }
-        oled_write(menu->items[i].label, false);
-
-        // now draw the value
-        const unsigned FIRST_PART_LEN = 10;
-        oled_set_cursor(FIRST_PART_LEN, i - menu->first_shown_item);
-        menu_item_t *item = &menu->items[i];
-        switch(menu->items[i].type) {
-            case ITEM_TOGGLE:
-                if(*(bool*)item->data_ptr) {
-                    oled_write("enabled", false);
-                } else {
-                    oled_write("disabled", false);
-                }
-                break;
-
-            case ITEM_SLIDER:
-                if(!item->show_value) {
-                    for(int j = 0; j < 21 - FIRST_PART_LEN; j++) {
-                        if(*(uint8_t*)item->data_ptr > j * 255 / (21 - FIRST_PART_LEN)) {
-                            oled_write_char('=', false);
-                        } else {
-                            oled_write_char('-', false);
-                        }
-                    }
-                } else {
-                    uint8_t val = *item->data_ptr;
-                    oled_write_char('0' + val / 100 % 10, false);
-                    oled_write_char('0' + val / 10 % 10, false);
-                    oled_write_char('0' + val / 1 % 10, false);
-                }
-                break;
-
-            case ITEM_LIST:
-                oled_write(item->name_getter(*item->data_ptr), false);
-                break;
-
-            default:
-                break;
-        }
-    }
-
-    screen->need_redraw = false;
 }
 
-static void main_draw(screen_t *screen) {
-    static uint8_t current_frame = 0;
-    static uint16_t current_waittime = 0;
-    static uint32_t anim_timer = 0;
+static void layer_switch_enter(void) {
+    oled_clear();
+    oled_set_cursor(0, 0);
 
-    if(timer_elapsed32(anim_timer) >= current_waittime) {
-        anim_timer = timer_read32();
-        current_frame = (current_frame + 1) % current_anim->frame_count;
-        current_waittime = current_anim->frame_durations_ms[current_frame];
-        oled_set_cursor(0, 0);
-        oled_write_raw((const char*)current_anim->frames[current_frame], 1024);
+    oled_write("conf", IS_LAYER_ON(LAYER_CONFIG));
+    oled_write_char('|', false);
+    oled_write("lock", IS_LAYER_ON(LAYER_LOCK));
+    oled_write_ln("| xx | xx ", false);
+
+    oled_write("nmpd", IS_LAYER_ON(LAYER_NUMPAD));
+    oled_write_char('|', false);
+    oled_write("nkia", IS_LAYER_ON(LAYER_NOKIA));
+    oled_write_ln("| xx | xx ", false);
+
+    oled_write(" xx | xx | xx |", false);
+    oled_write_ln("base", true);
+}
+
+static void main_draw(screen_t *self) {
+    // static uint32_t current_frame = 0;
+    // static uint16_t current_waittime = 0;
+    // static uint32_t anim_timer = 0;
+    //
+    // if(timer_elapsed32(anim_timer) >= current_waittime) {
+    //     current_frame = (current_frame + 1) % current_anim->frame_count;
+    //     current_waittime = current_anim->frame_durations_ms[current_frame];
+    //     oled_set_cursor(0, 0);
+    //     oled_write_raw((const char*)current_anim->frames[current_frame], 1024);
+    //     anim_timer = timer_read32();
+    // }
+    // // never touch need_redraw flag so this func always run
+
+    static uint16_t kps = 0;
+    static uint32_t last_kps_calc = 0;
+    static uint32_t last_ui_draw = 0;
+
+    static int16_t displayed_width = 0;
+
+    if(timer_elapsed32(last_kps_calc) > 100) {
+        last_kps_calc = timer_read32();
+        kps = key_pressed_count * 10;
+        key_pressed_count = 0;
     }
 
-    // never touch need_redraw flag so this func always run
+    if(timer_elapsed32(last_ui_draw) > 33) {
+        last_ui_draw = timer_read32();
+
+        int16_t target_width = (kps * 128) / 57;
+        if(target_width > 128) target_width = 128;
+
+        if(displayed_width < target_width) {
+            displayed_width += 8;
+            if (displayed_width > target_width) displayed_width = target_width;
+        } else if(displayed_width > target_width) {
+            displayed_width -= 4;
+            if(displayed_width < target_width) displayed_width = target_width;
+        }
+
+        oled_set_cursor(0, 0);
+        oled_write_char(' ', false);
+        oled_write_char('0' + key_state[MAIN_KC_UP], false);
+        oled_write_char('\n', false);
+        oled_write_char('0' + key_state[MAIN_KC_LEFT], false);
+        oled_write_char('0' + key_state[MAIN_KC_DOWN], false);
+        oled_write_char('0' + key_state[MAIN_KC_RIGHT], false);
+        oled_write_char('\n', false);
+        oled_write_char('0' + key_state[MAIN_KC_Z], false);
+        oled_write_char('0' + key_state[MAIN_KC_X], false);
+        oled_write_char('0' + key_state[MAIN_KC_C], false);
+        oled_write_char('\n', false);
+        oled_write("kps\n", false);
+
+        uint8_t gauge[128] = {0};
+        for(int i = 0; i < displayed_width; i++) {
+            gauge[i] = 0xFF;
+        }
+
+        oled_set_cursor(0, 4);
+        oled_write_raw((const char*)gauge, 128);
+    }
+
+    // self->need_redraw = false;
 }
 
 static void set_led_matrix_state(uint8_t enable) {
@@ -236,8 +167,8 @@ const char* get_led_mode_name(uint8_t mode) {
         case RGB_MATRIX_BREATHING:                return "Breathing";
         case RGB_MATRIX_BAND_SAT:                 return "Band Sat";
         case RGB_MATRIX_BAND_VAL:                 return "Band Val";
-        case RGB_MATRIX_BAND_PINWHEEL_SAT:        return "PinwheelSat";
-        case RGB_MATRIX_BAND_PINWHEEL_VAL:        return "PinwheelVal";
+        case RGB_MATRIX_BAND_PINWHEEL_SAT:        return "Pinwheel Sat";
+        case RGB_MATRIX_BAND_PINWHEEL_VAL:        return "Pinwheel Val";
         case RGB_MATRIX_BAND_SPIRAL_SAT:          return "Spiral Sat";
         case RGB_MATRIX_BAND_SPIRAL_VAL:          return "Spiral Val";
         case RGB_MATRIX_CYCLE_ALL:                return "Cycle All";
@@ -271,8 +202,8 @@ const char* get_led_mode_name(uint8_t mode) {
         case RGB_MATRIX_SOLID_REACTIVE_NEXUS:     return "Nexus";
         case RGB_MATRIX_SOLID_REACTIVE_MULTINEXUS:return "Nexus Multi";
         case RGB_MATRIX_SPLASH:                   return "Splash";
-        case RGB_MATRIX_MULTISPLASH:              return "SplashMulti";
-        case RGB_MATRIX_SOLID_SPLASH:             return "SplashSolid";
+        case RGB_MATRIX_MULTISPLASH:              return "Splash Multi";
+        case RGB_MATRIX_SOLID_SPLASH:             return "Splash Solid";
         case RGB_MATRIX_SOLID_MULTISPLASH:        return "Splash S-M";
         case RGB_MATRIX_STARLIGHT:                return "Starlight";
         case RGB_MATRIX_STARLIGHT_SMOOTH:         return "Star Smooth";
@@ -384,7 +315,7 @@ static void led_set_rgb(uint8_t dummy) {
     led_set_hsv(dummy);
 }
 
-static menu_item_t led_items[] = {
+static menu_item_t screen_led_items[] = {
     {
         ITEM_TOGGLE,
         "state",
@@ -459,86 +390,97 @@ static menu_item_t led_items[] = {
 static screen_t screen_led = {
     SCREEN_MENU,
     true,
-    menu_event,
+    ui_menu_event,
     load_led_config,
     save_led_config,
     NULL,
     .menu = {
         "led config",
-        led_items,
-        ARRAY_SIZE(led_items),
+        screen_led_items,
+        ARRAY_SIZE(screen_led_items),
         0,
         0,
     }
 };
 
-static menu_item_t main_items[] = {
+static menu_item_t screen_config_items[] = {
     {
         ITEM_SCREEN,
-        "led cfg",
+        "leds config",
         .target_screen = &screen_led,
+    },
+    {
+        ITEM_ACTION,
+        "reset settings",
+        .action = eeconfig_init,
+    },
+    {
+        ITEM_ACTION,
+        "reboot",
+        .action = soft_reset_keyboard,
+    },
+    {
+        ITEM_ACTION,
+        "enter boot mode",
+        .action = reset_keyboard,
     },
 };
 static screen_t screen_config = {
     SCREEN_MENU,
     true,
-    menu_event,
+    ui_menu_event,
     NULL,
     NULL,
     NULL,
     .menu = {
-        "main",
-        main_items,
-        ARRAY_SIZE(main_items),
+        NULL,
+        screen_config_items,
+        ARRAY_SIZE(screen_config_items),
         0,
         0,
     }
 };
 
-static screen_t screen_main = {
+static screen_t screen_base = {
     SCREEN_FREEDRAW,
     true,
     main_event,
+    main_enter,
     NULL,
-    .draw = main_draw
+    NULL,
+    .draw = main_draw,
 };
 
-static const screen_t *root_screen_map[] = {
-    [ROOT_SCREEN_MAIN] = &screen_main,
-    [ROOT_SCREEN_CONFIG] = &screen_config,
+static screen_t screen_layer_switch = {
+    SCREEN_FREEDRAW,
+    true,
+    NULL,
+    layer_switch_enter,
+    NULL,
+    NULL,
+    .draw = NULL,
+};
+
+static const screen_t *layer_screen_map[] = {
+    [LAYER_BASE] = &screen_base,
+    [LAYER_NUMPAD] = &screen_base,
+    [LAYER_NOKIA] = &screen_base,
+    [LAYER_CONFIG] = &screen_config,
+    [LAYER_LOCK] = &screen_base,
+    [LAYER_SWITCH] = &screen_layer_switch,
 };
 
 void myui_init(void) {
     screen_led.parent = &screen_config;
-    current_screen = &screen_main;
-    current_screen->need_redraw = true;
-    current_root_screen = ROOT_SCREEN_MAIN;
+    current_layer = LAYER_BASE;
+    ui_init(&screen_base);
 }
 
-void myui_switch_root(root_screen_t root_screen) {
-    if(root_screen == current_root_screen) {
+void myui_switch_layer(layer_t active_layer) {
+    if(active_layer == current_layer) {
         return;
     }
 
-    current_root_screen = root_screen;
-    open_screen((screen_t*)root_screen_map[root_screen]);
-}
-
-bool myui_event(int keycode) {
-    return current_screen->event(current_screen, keycode);
-}
-
-void myui_render(void) {
-    switch(current_screen->type) {
-        case SCREEN_FREEDRAW:
-            current_screen->draw(current_screen);
-            break;
-
-        case SCREEN_MENU:
-            draw_menu(current_screen);
-            break;
-
-        default:
-            return;
-    }
+    current_layer = active_layer;
+    ui_open_screen((screen_t*)layer_screen_map[current_layer]);
 }

@@ -1,6 +1,6 @@
 #include "bitmap.h"
 
-const animation_t KEMOMIMI_GIF = {
+const animation_t kemomimi = {
    10,
    (const uint16_t[]) { 20, 20, 20, 20, 20, 20, 20, 20, 20, 20 },
    (const uint8_t[][1024]){

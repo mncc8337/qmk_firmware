@@ -2,22 +2,21 @@
 
 #include QMK_KEYBOARD_H
 
-enum layers {
+typedef enum {
     LAYER_BASE,
+    LAYER_NUMPAD,
+    LAYER_NOKIA,
     LAYER_CONFIG,
-    LAYER_KEYLOCK,
-    LAYER_FN,
-};
+    LAYER_LOCK,
+    LAYER_SWITCH,
+} layer_t;
 
-enum custom_keycodes {
-    UI_UP = SAFE_RANGE,
-    UI_DOWN,
-    UI_LEFT,
-    UI_RIGHT,
-    UI_CLICK,
-    UI_BACK
-};
-
+// DO NOT MOVE THIS
 #if defined(OLED_ENABLE)
 #include "myui.h"
 #endif
+
+// DO NOT MOVE THIS
+enum custom_keycodes {
+    UIKC_CLICK_OR_LAYER_SWITCH = SAFE_RANGE,
+};
