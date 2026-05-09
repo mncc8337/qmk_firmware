@@ -6,6 +6,7 @@ typedef enum {
     LAYER_BASE,
     LAYER_NUMPAD,
     LAYER_NOKIA,
+    LAYER_FEATURE,
     LAYER_CONFIG,
     LAYER_LOCK,
     LAYER_SWITCH,
@@ -19,4 +20,5 @@ typedef enum {
 // DO NOT MOVE THIS
 enum custom_keycodes {
     UIKC_CLICK_OR_LAYER_SWITCH = SAFE_RANGE,
+    KC_SWITCH_ANIMATION,
 };

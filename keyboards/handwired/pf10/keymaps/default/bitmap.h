@@ -9,3 +9,5 @@ typedef struct {
 } animation_t;
 
 const animation_t kemomimi;
+
+const animation_t *animations[1];

@@ -24,14 +24,19 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         TD(TAP_DANCE_4), TD(TAP_DANCE_5), TD(TAP_DANCE_6), KC_TRNS,
         TD(TAP_DANCE_7), TD(TAP_DANCE_8), TD(TAP_DANCE_9), TD(TAP_DANCE_0)
     ),
+    [LAYER_FEATURE] = LAYOUT(
+        KC_NO,      KC_NO,     KC_NO,     UIKC_CLICK_OR_LAYER_SWITCH,
+        UIKC_BACK,  KC_NO,     UIKC_UP,   UIKC_BACK,
+        UIKC_CLICK, UIKC_LEFT, UIKC_DOWN, UIKC_RIGHT
+    ),
     [LAYER_CONFIG] = LAYOUT(
         KC_NO,      KC_NO,     KC_NO,     UIKC_CLICK_OR_LAYER_SWITCH,
-        UIKC_LEFT,  KC_NO,     UIKC_UP,   UIKC_BACK,
-        UIKC_RIGHT, UIKC_BACK, UIKC_DOWN, UIKC_CLICK
+        UIKC_BACK,  KC_NO,     UIKC_UP,   UIKC_BACK,
+        UIKC_CLICK, UIKC_LEFT, UIKC_DOWN, UIKC_RIGHT
     ),
     [LAYER_LOCK] = LAYOUT(
         KC_NO, KC_NO, KC_NO, MO(LAYER_SWITCH),
-        KC_NO, KC_NO, KC_NO, KC_NO,
+        KC_NO, KC_NO, KC_NO, KC_SWITCH_ANIMATION,
         KC_NO, KC_NO, KC_NO, KC_NO
     ),
     [LAYER_SWITCH] = LAYOUT(
@@ -41,91 +46,101 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
 };
 
+#if defined(COMBO_ENABLE)
+const uint16_t PROGMEM switch_animation_combo[] = {MO(LAYER_SWITCH), KC_MUTE, COMBO_END};
+
+combo_t key_combos[] = {
+    COMBO(switch_animation_combo, KC_SWITCH_ANIMATION),
+};
+#endif
+
 #if defined(TAP_DANCE_ENABLE)
 void dance_1_fin(tap_dance_state_t *state, void *user_data) {
-    if(state->count >= 1) {
-        tap_code(KC_1);
+    switch(state->count % 3) {
+        case 1: tap_code(KC_ENTER); break;
+        case 2: tap_code(KC_1); break;
     }
 }
 
 void dance_2_fin(tap_dance_state_t *state, void *user_data) {
-    switch(state->count) {
-        case 2: tap_code(KC_A); break;
-        case 3: tap_code(KC_B); break;
-        case 4: tap_code(KC_C); break;
-        default: tap_code(KC_2); break;
+    switch(state->count % 5) {
+        case 1: tap_code(KC_A); break;
+        case 2: tap_code(KC_B); break;
+        case 3: tap_code(KC_C); break;
+        case 4: tap_code(KC_2); break;
     }
 }
 
 void dance_3_fin(tap_dance_state_t *state, void *user_data) {
-    switch(state->count) {
-        case 2: tap_code(KC_D); break;
-        case 3: tap_code(KC_E); break;
-        case 4: tap_code(KC_F); break;
-        default: tap_code(KC_3); break;
+    switch(state->count % 5) {
+        case 1: tap_code(KC_D); break;
+        case 2: tap_code(KC_E); break;
+        case 3: tap_code(KC_F); break;
+        case 4: tap_code(KC_3); break;
     }
 }
 
 void dance_4_fin(tap_dance_state_t *state, void *user_data) {
-    switch(state->count) {
-        case 2: tap_code(KC_G); break;
-        case 3: tap_code(KC_H); break;
-        case 4: tap_code(KC_I); break;
-        default: tap_code(KC_4); break;
+    switch(state->count % 5) {
+        case 1: tap_code(KC_G); break;
+        case 2: tap_code(KC_H); break;
+        case 3: tap_code(KC_I); break;
+        case 4: tap_code(KC_4); break;
     }
 }
 
 void dance_5_fin(tap_dance_state_t *state, void *user_data) {
-    switch(state->count) {
-        case 2: tap_code(KC_J); break;
-        case 3: tap_code(KC_K); break;
-        case 4: tap_code(KC_L); break;
-        default: tap_code(KC_5); break;
+    switch(state->count % 5) {
+        case 1: tap_code(KC_J); break;
+        case 2: tap_code(KC_K); break;
+        case 3: tap_code(KC_L); break;
+        case 4: tap_code(KC_5); break;
     }
 }
 
 void dance_6_fin(tap_dance_state_t *state, void *user_data) {
-    switch(state->count) {
-        case 2: tap_code(KC_M); break;
-        case 3: tap_code(KC_N); break;
-        case 4: tap_code(KC_O); break;
-        default: tap_code(KC_6); break;
+    switch(state->count % 5) {
+        case 1: tap_code(KC_M); break;
+        case 2: tap_code(KC_N); break;
+        case 3: tap_code(KC_O); break;
+        case 4: tap_code(KC_6); break;
     }
 }
 
 void dance_7_fin(tap_dance_state_t *state, void *user_data) {
-    switch(state->count) {
-        case 2: tap_code(KC_P); break;
-        case 3: tap_code(KC_Q); break;
-        case 4: tap_code(KC_R); break;
-        case 5: tap_code(KC_S); break;
-        default: tap_code(KC_7); break;
+    switch(state->count % 6) {
+        case 1: tap_code(KC_P); break;
+        case 2: tap_code(KC_Q); break;
+        case 3: tap_code(KC_R); break;
+        case 4: tap_code(KC_S); break;
+        case 5: tap_code(KC_7); break;
     }
 }
 
 void dance_8_fin(tap_dance_state_t *state, void *user_data) {
-    switch(state->count) {
-        case 2: tap_code(KC_T); break;
-        case 3: tap_code(KC_U); break;
-        case 4: tap_code(KC_V); break;
-        default: tap_code(KC_8); break;
+    switch(state->count % 5) {
+        case 1: tap_code(KC_T); break;
+        case 2: tap_code(KC_U); break;
+        case 3: tap_code(KC_V); break;
+        case 4: tap_code(KC_8); break;
     }
 }
 
 void dance_9_fin(tap_dance_state_t *state, void *user_data) {
-    switch(state->count) {
-        case 2: tap_code(KC_W); break;
-        case 3: tap_code(KC_X); break;
-        case 4: tap_code(KC_Y); break;
-        case 5: tap_code(KC_Z); break;
-        default: tap_code(KC_9); break;
+    switch(state->count % 6) {
+        case 1: tap_code(KC_W); break;
+        case 2: tap_code(KC_X); break;
+        case 3: tap_code(KC_Y); break;
+        case 4: tap_code(KC_Z); break;
+        case 5: tap_code(KC_9); break;
     }
 }
 
 void dance_0_fin(tap_dance_state_t *state, void *user_data) {
-    switch(state->count) {
-        case 1: tap_code(KC_0); break;
-        default: tap_code(KC_SPACE); break;
+    switch(state->count % 4) {
+        case 1: tap_code(KC_SPACE); break;
+        case 2: tap_code(KC_BACKSPACE); break;
+        case 3: tap_code(KC_0); break;
     }
 }
 
@@ -146,6 +161,14 @@ tap_dance_action_t tap_dance_actions[] = {
 #if defined(ENCODER_MAP_ENABLE)
 const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
     [LAYER_BASE] = {
+        ENCODER_CCW_CW(KC_VOLD, KC_VOLU),
+        ENCODER_CCW_CW(MS_WHLU, MS_WHLD),
+    },
+    [LAYER_NUMPAD] = {
+        ENCODER_CCW_CW(KC_VOLD, KC_VOLU),
+        ENCODER_CCW_CW(MS_WHLU, MS_WHLD),
+    },
+    [LAYER_NOKIA] = {
         ENCODER_CCW_CW(KC_VOLD, KC_VOLU),
         ENCODER_CCW_CW(MS_WHLU, MS_WHLD),
     },

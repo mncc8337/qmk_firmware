@@ -16,6 +16,7 @@
         "encoder": true,
         "encoder_map": true,
         "extrakey": true,
+        "combo": true,
         "mousekey": true,
         "tap_dance": true,
         "nkro": true,
